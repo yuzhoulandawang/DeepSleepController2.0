@@ -1,5 +1,6 @@
 package com.example.deepsleep.ui.main
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -17,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.deepsleep.model.AppSettings
+import com.example.deepsleep.model.Statistics
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -26,6 +29,7 @@ fun MainScreen(
     onNavigateToSettings: () -> Unit,
     viewModel: MainViewModel = viewModel()
 ) {
+    val scope = rememberCoroutineScope()
     val settings by viewModel.settings.collectAsState()
     val statistics by viewModel.statistics.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
@@ -64,7 +68,7 @@ fun MainScreen(
             RootStatusCard(
                 hasRoot = uiState.hasRoot,
                 isRefreshing = uiState.isRefreshing,
-                onRefresh = { viewModel.refreshRootStatus() }
+                onRefresh = { scope.launch { viewModel.refreshRootStatus() } }
             )
 
             StatisticsCard(statistics)
@@ -133,9 +137,7 @@ fun RootStatusCard(
 }
 
 @Composable
-fun StatisticsCard(statistics: Triple<Int, Int, Int>) {
-    val (enterCount, successRate, fixRate) = statistics
-
+fun StatisticsCard(statistics: Statistics) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -157,8 +159,14 @@ fun StatisticsCard(statistics: Triple<Int, Int, Int>) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                StatItem("进入次数", enterCount.toString())
+                StatItem("进入次数", statistics.totalEnterCount.toString())
+                val successRate = if (statistics.totalEnterCount > 0) {
+                    statistics.totalEnterSuccess * 100 / statistics.totalEnterCount
+                } else 0
                 StatItem("成功率", "$successRate%")
+                val fixRate = if (statistics.totalAutoExitCount > 0) {
+                    statistics.totalAutoExitRecover * 100 / statistics.totalAutoExitCount
+                } else 0
                 StatItem("修复率", "$fixRate%")
             }
         }
