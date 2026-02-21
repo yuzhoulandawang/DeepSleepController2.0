@@ -31,7 +31,6 @@ class LogRepository {
     }
     
     private fun parseLogLine(line: String): LogEntry? {
-        // 格式: [timestamp] [LEVEL] [TAG] message
         val regex = """\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]\s+\[(\w+)\]\s+(?:\[([^\]]+)\]\s+)?(.*)""".toRegex()
         val match = regex.find(line)
         
@@ -49,7 +48,6 @@ class LogRepository {
                 message = match.groupValues[4]
             )
         } else {
-            // 兼容旧格式
             val oldRegex = """\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]\s+(.*)""".toRegex()
             val oldMatch = oldRegex.find(line)
             if (oldMatch != null) {
