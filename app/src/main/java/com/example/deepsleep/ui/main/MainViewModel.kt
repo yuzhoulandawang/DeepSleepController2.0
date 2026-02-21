@@ -175,6 +175,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // 新增：手动选择 CPU 模式
+    fun setCpuMode(mode: String) {
+        viewModelScope.launch {
+            settingsRepository.setCpuMode(mode)
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "CPU 模式已设置为: ${getCpuModeName(mode)}")
+        }
+    }
+
     fun setAutoSwitchCpuMode(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setAutoSwitchCpuMode(enabled)
