@@ -11,15 +11,8 @@ import com.example.deepsleep.data.SettingsRepository
 import com.example.deepsleep.data.StatsRepository
 import com.example.deepsleep.model.AppSettings
 import com.example.deepsleep.model.LogLevel
-import com.example.deepsleep.root.RootCommander
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-
-data class MainUiState(
-    val hasRoot: Boolean = false,
-    val isRefreshing: Boolean = false
-)
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -28,10 +21,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val settingsRepository = SettingsRepository(context)
     private val logRepository = LogRepository()
     private val statsRepository = StatsRepository()
-
-    // UI 状态
-    private val _uiState = MutableStateFlow(MainUiState())
-    val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
     val settings: StateFlow<AppSettings> = settingsRepository.settings
         .stateIn(viewModelScope, SharingStarted.Lazily, AppSettings())
@@ -46,15 +35,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         setupNotificationChannel()
-        viewModelScope.launch {
-            refreshRootStatus()
-        }
-        viewModelScope.launch {
-            while (true) {
-                delay(60_000)
-                refreshRootStatus()
-            }
-        }
     }
 
     private fun setupNotificationChannel() {
@@ -72,10 +52,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // ========== 新增方法 ==========
     suspend fun refreshRootStatus() {
-        _uiState.update { it.copy(isRefreshing = true) }
-        val hasRoot = RootCommander.checkRoot()
-        _uiState.update { it.copy(hasRoot = hasRoot, isRefreshing = false) }
+        // TODO: 如果后续需要显示 root 状态，可在此调用 RootCommander.checkRoot() 并更新 UI
     }
 
     // ========== 原有方法（修正 appendLog 调用） ==========
