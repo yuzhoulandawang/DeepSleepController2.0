@@ -24,13 +24,11 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
-    // 使用 viewModels() 委托获取 ViewModel 实例
     private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 请求通知权限（Android 13+）
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         }
@@ -48,10 +46,10 @@ class MainActivity : ComponentActivity() {
                     ) {
                         composable("main") {
                             MainScreen(
-                                viewModel = viewModel, // 将 Activity 持有的 ViewModel 传入
-                                onNavigateToSettings = { navController.navigate("settings") },
                                 onNavigateToLogs = { navController.navigate("logs") },
-                                onNavigateToWhitelist = { navController.navigate("whitelist") }
+                                onNavigateToWhitelist = { navController.navigate("whitelist") },
+                                onNavigateToSettings = { navController.navigate("settings") },
+                                viewModel = viewModel
                             )
                         }
                         composable("settings") {
@@ -71,7 +69,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // 每次回到前台时刷新 root 状态
         lifecycleScope.launch {
             viewModel.refreshRootStatus()
         }
