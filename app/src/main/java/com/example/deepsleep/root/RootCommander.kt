@@ -16,7 +16,6 @@ object RootCommander {
         )
     }
 
-    // 确保 Shell 已连接，如果未连接则尝试连接
     private suspend fun ensureShell(): Boolean = withContext(Dispatchers.IO) {
         try {
             Shell.getShell()
@@ -26,7 +25,6 @@ object RootCommander {
         }
     }
 
-    // 主动请求 root 授权（触发 Magisk 弹窗）
     suspend fun requestRootAccess(): Boolean = withContext(Dispatchers.IO) {
         try {
             Shell.getShell()
