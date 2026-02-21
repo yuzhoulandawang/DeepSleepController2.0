@@ -18,6 +18,7 @@ import com.example.deepsleep.data.LogRepository
 import com.example.deepsleep.data.SettingsRepository
 import com.example.deepsleep.data.StatsRepository
 import com.example.deepsleep.model.DozeState
+import com.example.deepsleep.model.LogLevel
 import com.example.deepsleep.model.ScreenState
 import com.example.deepsleep.root.BackgroundOptimizer
 import com.example.deepsleep.root.DozeController
@@ -93,42 +94,39 @@ class DeepSleepService : Service() {
         startForeground(NOTIFICATION_ID, createNotification("服务启动中..."))
 
         serviceScope.launch {
-            log("=== 深度睡眠服务启动 ===")
+            log(LogLevel.INFO, "Service", "=== 深度睡眠服务启动 ===")
 
             val motionBackup = DozeController.backupMotionState()
             settingsRepo.saveMotionBackup(motionBackup)
-            log("已备份 motion 状态: $motionBackup")
+            log(LogLevel.INFO, "Service", "已备份 motion 状态: $motionBackup")
 
             WaltOptimizer.applyGlobalOptimizations()
-            log("全局优化已应用")
+            log(LogLevel.INFO, "Service", "全局优化已应用")
 
-            // 应用初始 CPU 模式
             val settings = settingsRepo.getSettings()
             if (settings.cpuOptimizationEnabled) {
                 applyCpuMode(settings.cpuMode)
-                log("初始 CPU 模式: ${getCpuModeName(settings.cpuMode)}")
+                log(LogLevel.INFO, "Service", "初始 CPU 模式: ${getCpuModeName(settings.cpuMode)}")
             }
 
             if (settings.backgroundOptimizationEnabled) {
-                log("开始后台优化...")
+                log(LogLevel.INFO, "Service", "开始后台优化...")
                 val whitelist = settingsRepo.getBackgroundWhitelist()
                 BackgroundOptimizer.optimizeAll(this@DeepSleepService, whitelist)
-                log("后台优化完成")
+                log(LogLevel.INFO, "Service", "后台优化完成")
             }
 
             val initialScreen = checkScreenState()
             if (initialScreen == ScreenState.OFF) {
-                log("启动时屏幕已关闭，进入强制模式")
+                log(LogLevel.INFO, "Service", "启动时屏幕已关闭，进入强制模式")
                 enterForceMode()
                 DozeController.enterDeepSleep()
 
-                // 息屏时自动切换到待机模式（如果启用了自动切换）
                 if (settings.cpuOptimizationEnabled && settings.autoCpuMode) {
                     WaltOptimizer.applyStandby()
-                    log("息屏自动切换到待机模式")
+                    log(LogLevel.INFO, "Service", "息屏自动切换到待机模式")
                 }
             } else {
-                // 亮屏时应用当前选择的模式
                 if (settings.cpuOptimizationEnabled) {
                     applyCpuMode(settings.cpuMode)
                 }
@@ -154,15 +152,15 @@ class DeepSleepService : Service() {
 
                 _dozeState.value = doze
 
-                if (forceModeActive && screen == ScreenState.OFF && 
+                if (forceModeActive && screen == ScreenState.OFF &&
                     doze != DozeState.IDLE && doze != DozeState.IDLE_MAINTENANCE) {
 
-                    log("⚠️ 检测到自动退出，尝试重新进入")
+                    log(LogLevel.WARNING, "Service", "⚠️ 检测到自动退出，尝试重新进入")
                     statsRepo.recordAutoExit()
 
                     if (DozeController.enterDeepSleep()) {
                         statsRepo.recordAutoExitRecovered()
-                        log("✅ 已重新进入深度睡眠")
+                        log(LogLevel.SUCCESS, "Service", "✅ 已重新进入深度睡眠")
                     }
                 }
 
@@ -196,7 +194,7 @@ class DeepSleepService : Service() {
                     if (shouldSuppress) {
                         val whitelist = settingsRepo.getSuppressWhitelist()
                         ProcessSuppressor.suppress(settings.suppressOomValue, whitelist)
-                        log("进程压制已执行，OOM值: ${settings.suppressOomValue}")
+                        log(LogLevel.INFO, "Service", "进程压制已执行，OOM值: ${settings.suppressOomValue}")
                     }
 
                     lastSuppressTime = currentTime
@@ -213,12 +211,12 @@ class DeepSleepService : Service() {
             val debounce = settingsRepo.getSettings().debounceInterval * 1000
 
             if (currentTime - lastScreenOffTime < debounce) {
-                log("⏳ 息屏防抖，忽略")
+                log(LogLevel.INFO, "Service", "⏳ 息屏防抖，忽略")
                 return@launch
             }
 
             lastScreenOffTime = currentTime
-            log("🌙 屏幕关闭")
+            log(LogLevel.INFO, "Service", "🌙 屏幕关闭")
             statsRepo.recordStateChange()
 
             enterForceMode()
@@ -227,18 +225,17 @@ class DeepSleepService : Service() {
             val success = DozeController.enterDeepSleep()
             if (success) {
                 statsRepo.recordEnterSuccess()
-                log("✅ 已进入深度睡眠")
+                log(LogLevel.SUCCESS, "Service", "✅ 已进入深度睡眠")
             } else {
-                log("❌ 进入深度睡眠失败")
+                log(LogLevel.ERROR, "Service", "❌ 进入深度睡眠失败")
             }
 
-            // 自动切换 CPU 模式
             val settings = settingsRepo.getSettings()
             if (settings.cpuOptimizationEnabled && settings.autoCpuMode) {
                 WaltOptimizer.applyStandby()
-                log("息屏自动切换到待机模式")
+                log(LogLevel.INFO, "Service", "息屏自动切换到待机模式")
             } else if (settings.cpuOptimizationEnabled) {
-                log("自动模式已禁用，保持当前 CPU 模式")
+                log(LogLevel.INFO, "Service", "自动模式已禁用，保持当前 CPU 模式")
             }
 
             if (settings.suppressEnabled) {
@@ -256,12 +253,12 @@ class DeepSleepService : Service() {
             val debounce = settingsRepo.getSettings().debounceInterval * 1000
 
             if (currentTime - lastScreenOnTime < debounce) {
-                log("⏳ 亮屏防抖，忽略")
+                log(LogLevel.INFO, "Service", "⏳ 亮屏防抖，忽略")
                 return@launch
             }
 
             lastScreenOnTime = currentTime
-            log("☀️ 屏幕开启")
+            log(LogLevel.INFO, "Service", "☀️ 屏幕开启")
             statsRepo.recordStateChange()
 
             exitForceMode()
@@ -270,24 +267,23 @@ class DeepSleepService : Service() {
             val success = DozeController.exitDeepSleep()
             if (success) {
                 statsRepo.recordExitSuccess()
-                log("✅ 已退出深度睡眠")
+                log(LogLevel.SUCCESS, "Service", "✅ 已退出深度睡眠")
             } else {
-                log("❌ 退出深度睡眠失败")
+                log(LogLevel.ERROR, "Service", "❌ 退出深度睡眠失败")
             }
 
-            // 自动切换 CPU 模式
             val settings = settingsRepo.getSettings()
             if (settings.cpuOptimizationEnabled && settings.autoCpuMode) {
                 WaltOptimizer.applyDaily()
-                log("亮屏自动切换到日常模式")
+                log(LogLevel.INFO, "Service", "亮屏自动切换到日常模式")
             } else if (settings.cpuOptimizationEnabled) {
                 applyCpuMode(settings.cpuMode)
-                log("应用手动选择的 CPU 模式: ${getCpuModeName(settings.cpuMode)}")
+                log(LogLevel.INFO, "Service", "应用手动选择的 CPU 模式: ${getCpuModeName(settings.cpuMode)}")
             }
         }
     }
 
-    private fun applyCpuMode(mode: String) {
+    private suspend fun applyCpuMode(mode: String) {
         when (mode) {
             "daily" -> WaltOptimizer.applyDaily()
             "standby" -> WaltOptimizer.applyStandby()
@@ -311,7 +307,7 @@ class DeepSleepService : Service() {
         forceModeActive = true
         serviceScope.launch {
             DozeController.disableMotion()
-            log("🔧 强制模式已启用（motion 已禁用）")
+            log(LogLevel.INFO, "Service", "🔧 强制模式已启用（motion 已禁用）")
         }
     }
 
@@ -320,7 +316,7 @@ class DeepSleepService : Service() {
         forceModeActive = false
         serviceScope.launch {
             DozeController.enableMotion()
-            log("🔓 强制模式已退出（motion 已启用）")
+            log(LogLevel.INFO, "Service", "🔓 强制模式已退出（motion 已启用）")
         }
     }
 
@@ -335,17 +331,15 @@ class DeepSleepService : Service() {
         suppressJob?.cancel()
 
         serviceScope.launch {
-            log("=== 服务停止 ===")
+            log(LogLevel.INFO, "Service", "=== 服务停止 ===")
             exitForceMode()
             DozeController.exitDeepSleep()
 
-            // 恢复后台优化
             BackgroundOptimizer.restoreAll()
-            log("后台优化已恢复")
+            log(LogLevel.INFO, "Service", "后台优化已恢复")
 
-            // 恢复 WALT 参数
             WaltOptimizer.restoreDefault()
-            log("WALT 参数已恢复")
+            log(LogLevel.INFO, "Service", "WALT 参数已恢复")
 
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -353,16 +347,18 @@ class DeepSleepService : Service() {
     }
 
     private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            "深度睡眠服务",
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = "保持深度睡眠控制服务运行"
-        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "深度睡眠服务",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "保持深度睡眠控制服务运行"
+            }
 
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
+        }
     }
 
     private fun createNotification(content: String): Notification {
@@ -381,7 +377,7 @@ class DeepSleepService : Service() {
             .build()
     }
 
-    private fun updateNotificationStatus(screen: ScreenState, doze: DozeState) {
+    private suspend fun updateNotificationStatus(screen: ScreenState, doze: DozeState) {
         val screenText = if (screen == ScreenState.ON) "亮屏" else "息屏"
         val dozeText = when (doze) {
             DozeState.IDLE -> "深度睡眠"
@@ -404,8 +400,8 @@ class DeepSleepService : Service() {
         manager.notify(NOTIFICATION_ID, notification)
     }
 
-    private suspend fun log(message: String) {
-        LogRepository().appendLog(message)
+    private suspend fun log(level: LogLevel, tag: String, message: String) {
+        LogRepository().appendLog(level, tag, message)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
