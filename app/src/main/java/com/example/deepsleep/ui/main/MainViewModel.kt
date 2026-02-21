@@ -36,7 +36,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val settings: StateFlow<AppSettings> = settingsRepository.settings
         .stateIn(viewModelScope, SharingStarted.Lazily, AppSettings())
 
-    // 统计信息：使用 StateFlow 定期刷新
     private val _statistics = MutableStateFlow(Statistics())
     val statistics: StateFlow<Statistics> = _statistics.asStateFlow()
 
@@ -51,7 +50,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 refreshRootStatus()
             }
         }
-        // 定期刷新统计
         viewModelScope.launch {
             while (true) {
                 _statistics.value = statsRepository.loadStats()
@@ -69,7 +67,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             ).apply {
                 description = "深度睡眠优化服务通知"
             }
-
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
@@ -175,7 +172,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // 新增：手动选择 CPU 模式
     fun setCpuMode(mode: String) {
         viewModelScope.launch {
             settingsRepository.setCpuMode(mode)
