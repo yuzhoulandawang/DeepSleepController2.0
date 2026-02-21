@@ -22,10 +22,11 @@ class LogsViewModel : ViewModel() {
     private val _selectedLevel = MutableStateFlow<LogLevel?>(null)
     val selectedLevel: StateFlow<LogLevel?> = _selectedLevel.asStateFlow()
 
+    // 显式指定 lambda 参数类型，避免类型推断错误
     val filteredLogs: StateFlow<List<LogEntry>> = combine(
         _logs,
         _selectedLevel
-    ) { logs, level ->
+    ) { logs: List<LogEntry>, level: LogLevel? ->
         if (level == null) {
             logs
         } else {
