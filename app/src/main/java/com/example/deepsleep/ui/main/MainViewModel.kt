@@ -1,0 +1,338 @@
+package com.example.deepsleep.ui.main
+
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.deepsleep.data.LogRepository
+import com.example.deepsleep.data.SettingsRepository
+import com.example.deepsleep.data.StatsRepository
+import com.example.deepsleep.model.AppSettings
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+
+class MainViewModel(
+    private val context: Context,
+    private val settingsRepository: SettingsRepository = SettingsRepository(context),
+    private val logRepository: LogRepository = LogRepository(context),
+    private val statsRepository: StatsRepository = StatsRepository(context)
+) : ViewModel() {
+
+    val settings: StateFlow<AppSettings> = settingsRepository.settings
+        .stateIn(viewModelScope, SharingStarted.Lazily, AppSettings())
+
+    val statistics: StateFlow<Triple<Int, Int, Int>> = combine(
+        statsRepository.enterCount,
+        statsRepository.successRate,
+        statsRepository.fixRate
+    ) { enterCount, successRate, fixRate ->
+        Triple(enterCount, successRate, fixRate)
+    }.stateIn(viewModelScope, SharingStarted.Lazily, Triple(0, 0, 0))
+
+    init {
+        setupNotificationChannel()
+    }
+
+    private fun setupNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "deep_sleep_channel",
+                "深度睡眠控制",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "深度睡眠优化服务通知"
+            }
+
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    // ========== 深度 Doze ==========
+    fun setDeepDozeEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setDeepDozeEnabled(enabled)
+            logRepository.appendLog("深度 Doze 已${if (enabled) "启用" else "禁用"}")
+        }
+    }
+
+    fun setDeepDozeDelaySeconds(seconds: Int) {
+        viewModelScope.launch {
+            settingsRepository.setDeepDozeDelaySeconds(seconds)
+            logRepository.appendLog("深度 Doze 延迟时间已设置为: $seconds 秒")
+        }
+    }
+
+    fun setDeepDozeForceMode(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setDeepDozeForceMode(enabled)
+            logRepository.appendLog("深度 Doze 强制模式已${if (enabled) "启用" else "禁用"}")
+        }
+    }
+
+    // ========== 深度睡眠 Hook ==========
+    fun setDeepSleepHookEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setDeepSleepHookEnabled(enabled)
+            logRepository.appendLog("深度睡眠 Hook 已${if (enabled) "启用" else "禁用"}")
+        }
+    }
+
+    fun setDeepSleepDelaySeconds(seconds: Int) {
+        viewModelScope.launch {
+            settingsRepository.setDeepSleepDelaySeconds(seconds)
+            logRepository.appendLog("深度睡眠延迟时间已设置为: $seconds 秒")
+        }
+    }
+
+    fun setDeepSleepBlockExit(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setDeepSleepBlockExit(enabled)
+            logRepository.appendLog("深度睡眠阻止自动退出已${if (enabled) "启用" else "禁用"}")
+        }
+    }
+
+    fun setDeepSleepCheckInterval(interval: Int) {
+        viewModelScope.launch {
+            settingsRepository.setDeepSleepCheckInterval(interval)
+            logRepository.appendLog("深度睡眠状态检查间隔已设置为: $interval 秒")
+        }
+    }
+
+    // ========== 系统省电模式联动 ==========
+    fun setEnablePowerSaverOnSleep(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setEnablePowerSaverOnSleep(enabled)
+            logRepository.appendLog("进入深度睡眠时开启省电模式已${if (enabled) "启用" else "禁用"}")
+        }
+    }
+
+    fun setDisablePowerSaverOnWake(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setDisablePowerSaverOnWake(enabled)
+            logRepository.appendLog("退出深度睡眠时关闭省电模式已${if (enabled) "启用" else "禁用"}")
+        }
+    }
+
+    // ========== CPU 调度优化 ==========
+    fun setCpuOptimizationEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setCpuOptimizationEnabled(enabled)
+            logRepository.appendLog("CPU 调度优化已${if (enabled) "启用" else "禁用"}")
+        }
+    }
+
+    fun setCpuModeOnScreen(mode: String) {
+        viewModelScope.launch {
+            settingsRepository.setCpuModeOnScreen(mode)
+            val modeName = getCpuModeName(mode)
+            logRepository.appendLog("亮屏 CPU 模式已设置为: $modeName")
+        }
+    }
+
+    fun setCpuModeOnScreenOff(mode: String) {
+        viewModelScope.launch {
+            settingsRepository.setCpuModeOnScreenOff(mode)
+            val modeName = getCpuModeName(mode)
+            logRepository.appendLog("息屏 CPU 模式已设置为: $modeName")
+        }
+    }
+
+    fun setAutoSwitchCpuMode(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setAutoSwitchCpuMode(enabled)
+            logRepository.appendLog("自动切换 CPU 模式已${if (enabled) "启用" else "禁用"}")
+        }
+    }
+
+    fun setAllowManualCpuMode(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setAllowManualCpuMode(enabled)
+            logRepository.appendLog("手动切换 CPU 模式已${if (enabled) "启用" else "禁用"}")
+        }
+    }
+
+    // CPU 参数 - 日常模式
+    fun setDailyUpRateLimit(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setDailyUpRateLimit(value)
+        }
+    }
+
+    fun setDailyDownRateLimit(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setDailyDownRateLimit(value)
+        }
+    }
+
+    fun setDailyHiSpeedLoad(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setDailyHiSpeedLoad(value)
+        }
+    }
+
+    fun setDailyTargetLoads(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setDailyTargetLoads(value)
+        }
+    }
+
+    // CPU 参数 - 待机模式
+    fun setStandbyUpRateLimit(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setStandbyUpRateLimit(value)
+        }
+    }
+
+    fun setStandbyDownRateLimit(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setStandbyDownRateLimit(value)
+        }
+    }
+
+    fun setStandbyHiSpeedLoad(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setStandbyHiSpeedLoad(value)
+        }
+    }
+
+    fun setStandbyTargetLoads(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setStandbyTargetLoads(value)
+        }
+    }
+
+    // CPU 参数 - 默认模式
+    fun setDefaultUpRateLimit(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setDefaultUpRateLimit(value)
+        }
+    }
+
+    fun setDefaultDownRateLimit(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setDefaultDownRateLimit(value)
+        }
+    }
+
+    fun setDefaultHiSpeedLoad(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setDefaultHiSpeedLoad(value)
+        }
+    }
+
+    fun setDefaultTargetLoads(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setDefaultTargetLoads(value)
+        }
+    }
+
+    // CPU 参数 - 性能模式
+    fun setPerfUpRateLimit(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setPerfUpRateLimit(value)
+        }
+    }
+
+    fun setPerfDownRateLimit(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setPerfDownRateLimit(value)
+        }
+    }
+
+    fun setPerfHiSpeedLoad(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setPerfHiSpeedLoad(value)
+        }
+    }
+
+    fun setPerfTargetLoads(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setPerfTargetLoads(value)
+        }
+    }
+
+    // ========== 进程压制 ==========
+    fun setSuppressEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setSuppressEnabled(enabled)
+            logRepository.appendLog("进程压制已${if (enabled) "启用" else "禁用"}")
+        }
+    }
+
+    fun setSuppressMode(mode: String) {
+        viewModelScope.launch {
+            settingsRepository.setSuppressMode(mode)
+            val modeName = when (mode) {
+                "conservative" -> "保守"
+                "aggressive" -> "激进"
+                else -> mode
+            }
+            logRepository.appendLog("压制模式已设置为: $modeName")
+        }
+    }
+
+    fun setDebounceInterval(interval: Int) {
+        viewModelScope.launch {
+            settingsRepository.setDebounceInterval(interval)
+            logRepository.appendLog("防抖间隔已设置为: $interval 秒")
+        }
+    }
+
+    fun setSuppressInterval(interval: Int) {
+        viewModelScope.launch {
+            settingsRepository.setSuppressInterval(interval)
+            logRepository.appendLog("压制间隔已设置为: $interval 秒")
+        }
+    }
+
+    fun setSuppressOomValue(value: Int) {
+        viewModelScope.launch {
+            settingsRepository.setSuppressOomValue(value)
+            logRepository.appendLog("OOM 值已设置为: $value")
+        }
+    }
+
+    // ========== 后台优化 ==========
+    fun setBackgroundOptimizationEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setBackgroundOptimizationEnabled(enabled)
+            logRepository.appendLog("后台优化已${if (enabled) "启用" else "禁用"}")
+        }
+    }
+
+    // ========== 其他 ==========
+    fun setBootStartEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setBootStartEnabled(enabled)
+            logRepository.appendLog("开机自启动已${if (enabled) "启用" else "禁用"}")
+        }
+    }
+
+    fun setNotificationsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setNotificationsEnabled(enabled)
+            logRepository.appendLog("通知已${if (enabled) "启用" else "禁用"}")
+        }
+    }
+
+    fun clearLogs() {
+        viewModelScope.launch {
+            logRepository.clearLogs()
+            logRepository.appendLog("日志已清除")
+        }
+    }
+
+    private fun getCpuModeName(mode: String): String {
+        return when (mode) {
+            "daily" -> "日常模式"
+            "standby" -> "待机模式"
+            "default" -> "默认模式"
+            "performance" -> "性能模式"
+            else -> mode
+        }
+    }
+}
