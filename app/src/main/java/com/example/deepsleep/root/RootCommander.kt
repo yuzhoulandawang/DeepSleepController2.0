@@ -36,7 +36,9 @@ object RootCommander {
 
     suspend fun checkRoot(): Boolean = withContext(Dispatchers.IO) {
         if (!ensureShell()) return@withContext false
-        Shell.cmd("id").exec().isSuccess
+        val result = Shell.cmd("id").exec()
+        // 检查输出是否包含 uid=0
+        result.out.any { it.contains("uid=0") }
     }
 
     suspend fun exec(command: String): Shell.Result = withContext(Dispatchers.IO) {
