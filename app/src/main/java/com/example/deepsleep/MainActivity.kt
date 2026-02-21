@@ -20,6 +20,7 @@ import com.example.deepsleep.ui.settings.SettingsScreen
 import com.example.deepsleep.ui.logs.LogsScreen
 import com.example.deepsleep.ui.whitelist.WhitelistScreen
 import com.example.deepsleep.ui.theme.DeepSleepTheme
+import com.example.deepsleep.root.RootCommander
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -29,8 +30,16 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // 请求通知权限（Android 13+）
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+        }
+
+        // 主动请求 root 授权
+        lifecycleScope.launch {
+            RootCommander.requestRootAccess()
+            // 可选：刷新 root 状态
+            viewModel.refreshRootStatus()
         }
 
         setContent {
