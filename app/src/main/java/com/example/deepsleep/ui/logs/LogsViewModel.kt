@@ -10,7 +10,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.SharingStarted
 
 class LogsViewModel : ViewModel() {
 
@@ -22,17 +24,12 @@ class LogsViewModel : ViewModel() {
     private val _selectedLevel = MutableStateFlow<LogLevel?>(null)
     val selectedLevel: StateFlow<LogLevel?> = _selectedLevel.asStateFlow()
 
-    // 显式指定 lambda 参数类型，避免类型推断错误
     val filteredLogs: StateFlow<List<LogEntry>> = combine(
         _logs,
         _selectedLevel
-    ) { logs: List<LogEntry>, level: LogLevel? ->
-        if (level == null) {
-            logs
-        } else {
-            logs.filter { it.level == level }
-        }
-    }.asStateFlow()
+    ) { logs, level ->
+        if (level == null) logs else logs.filter { it.level == level }
+    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
         refreshLogs()
