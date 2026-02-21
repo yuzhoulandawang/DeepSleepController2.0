@@ -11,6 +11,7 @@ import com.example.deepsleep.data.SettingsRepository
 import com.example.deepsleep.data.StatsRepository
 import com.example.deepsleep.model.AppSettings
 import com.example.deepsleep.model.LogLevel
+import com.example.deepsleep.model.Statistics
 import com.example.deepsleep.root.RootCommander
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -35,13 +36,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val settings: StateFlow<AppSettings> = settingsRepository.settings
         .stateIn(viewModelScope, SharingStarted.Lazily, AppSettings())
 
-    val statistics: StateFlow<Triple<Int, Int, Int>> = combine(
-        statsRepository.enterCount,
-        statsRepository.successRate,
-        statsRepository.fixRate
-    ) { enterCount, successRate, fixRate ->
-        Triple(enterCount, successRate, fixRate)
-    }.stateIn(viewModelScope, SharingStarted.Lazily, Triple(0, 0, 0))
+    // 统计信息：使用 StateFlow 定期刷新
+    private val _statistics = MutableStateFlow(Statistics())
+    val statistics: StateFlow<Statistics> = _statistics.asStateFlow()
 
     init {
         setupNotificationChannel()
@@ -52,6 +49,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             while (true) {
                 delay(60_000)
                 refreshRootStatus()
+            }
+        }
+        // 定期刷新统计
+        viewModelScope.launch {
+            while (true) {
+                _statistics.value = statsRepository.loadStats()
+                delay(30_000)
             }
         }
     }
