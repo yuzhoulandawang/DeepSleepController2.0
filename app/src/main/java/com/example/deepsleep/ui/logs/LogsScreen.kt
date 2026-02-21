@@ -1,15 +1,12 @@
 package com.example.deepsleep.ui.logs
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -104,7 +101,7 @@ fun LevelFilter(
             .horizontalScroll(rememberScrollState())
             .padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
-    {
+    ) {  // 这里补上了缺失的括号
         // 全部
         FilterChip(
             selected = selectedLevel == null,
