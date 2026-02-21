@@ -91,7 +91,7 @@ class SettingsRepository(private val context: Context) {
             deepDozeForceMode = preferences[PreferencesKeys.DEEP_DOZE_FORCE_MODE] ?: false,
 
             // 深度睡眠 Hook
-            deepSleepHookEnabled = preferences[PreferencesKeys.DEEP_SLEEP_HOOK_ENABLED] ?: 
+            deepSleepHookEnabled = preferences[PreferencesKeys.DEEP_SLEEP_HOOK_ENABLED] ?:
                 preferences[PreferencesKeys.DEEP_SLEEP_ENABLED] ?: true,
             deepSleepDelaySeconds = preferences[PreferencesKeys.DEEP_SLEEP_DELAY_SECONDS] ?: 1,
             deepSleepBlockExit = preferences[PreferencesKeys.DEEP_SLEEP_BLOCK_EXIT] ?: true,
@@ -105,7 +105,7 @@ class SettingsRepository(private val context: Context) {
             cpuOptimizationEnabled = preferences[PreferencesKeys.CPU_OPT_ENABLED] ?: false,
             cpuModeOnScreen = preferences[PreferencesKeys.CPU_MODE_ON_SCREEN] ?: "daily",
             cpuModeOnScreenOff = preferences[PreferencesKeys.CPU_MODE_ON_SCREEN_OFF] ?: "standby",
-            autoSwitchCpuMode = preferences[PreferencesKeys.AUTO_SWITCH_CPU_MODE] ?: 
+            autoSwitchCpuMode = preferences[PreferencesKeys.AUTO_SWITCH_CPU_MODE] ?:
                 preferences[PreferencesKeys.AUTO_CPU_MODE] ?: true,
             allowManualCpuMode = preferences[PreferencesKeys.ALLOW_MANUAL_CPU_MODE] ?: true,
 
@@ -171,7 +171,7 @@ class SettingsRepository(private val context: Context) {
 
     // ========== 深度睡眠 Hook ==========
     suspend fun setDeepSleepHookEnabled(enabled: Boolean) {
-        context.dataStore.edit { 
+        context.dataStore.edit {
             it[PreferencesKeys.DEEP_SLEEP_HOOK_ENABLED] = enabled
             it[PreferencesKeys.DEEP_SLEEP_ENABLED] = enabled  // 兼容旧版本
         }
@@ -204,7 +204,7 @@ class SettingsRepository(private val context: Context) {
     }
 
     suspend fun setCpuModeOnScreen(mode: String) {
-        context.dataStore.edit { 
+        context.dataStore.edit {
             it[PreferencesKeys.CPU_MODE_ON_SCREEN] = mode
             it[PreferencesKeys.CPU_MODE] = mode  // 兼容旧版本
         }
@@ -214,8 +214,13 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { it[PreferencesKeys.CPU_MODE_ON_SCREEN_OFF] = mode }
     }
 
+    // 新增：手动选择 CPU 模式
+    suspend fun setCpuMode(mode: String) {
+        context.dataStore.edit { it[PreferencesKeys.CPU_MODE] = mode }
+    }
+
     suspend fun setAutoSwitchCpuMode(enabled: Boolean) {
-        context.dataStore.edit { 
+        context.dataStore.edit {
             it[PreferencesKeys.AUTO_SWITCH_CPU_MODE] = enabled
             it[PreferencesKeys.AUTO_CPU_MODE] = enabled  // 兼容旧版本
         }
