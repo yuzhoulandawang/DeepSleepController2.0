@@ -470,7 +470,7 @@ fun NumberInputDialog(
     )
 }
 
-// ========== 以下为各功能区域的具体实现（与之前用户提供的相同，仅添加必要的调用）==========
+// ========== 以下为各功能区域的具体实现 ==========
 @Composable
 fun DeepSleepSection(settings: AppSettings, viewModel: MainViewModel) {
     SectionCard(
