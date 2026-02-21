@@ -1,7 +1,6 @@
 package com.example.deepsleep.ui.logs
 
 import android.content.Context
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.deepsleep.data.LogRepository
@@ -19,10 +18,10 @@ class LogsViewModel : ViewModel() {
 
     private val _logs = MutableStateFlow<List<LogEntry>>(emptyList())
     val logs: StateFlow<List<LogEntry>> = _logs.asStateFlow()
-    
+
     private val _selectedLevel = MutableStateFlow<LogLevel?>(null)
     val selectedLevel: StateFlow<LogLevel?> = _selectedLevel.asStateFlow()
-    
+
     val filteredLogs: StateFlow<List<LogEntry>> = combine(
         _logs,
         _selectedLevel
@@ -37,24 +36,24 @@ class LogsViewModel : ViewModel() {
     init {
         refreshLogs()
     }
-    
+
     fun refreshLogs() {
         viewModelScope.launch {
             _logs.value = repository.readLogs()
         }
     }
-    
+
     fun setLevelFilter(level: LogLevel?) {
         _selectedLevel.value = level
     }
-    
+
     fun clearLogs() {
         viewModelScope.launch {
             repository.clearLogs()
             refreshLogs()
         }
     }
-    
+
     fun exportLogs(context: Context) {
         viewModelScope.launch {
             repository.createShareableFile(context)
