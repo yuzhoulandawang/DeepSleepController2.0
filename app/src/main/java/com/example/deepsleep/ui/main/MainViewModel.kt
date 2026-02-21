@@ -1,25 +1,37 @@
 package com.example.deepsleep.ui.main
 
+import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.Context
 import android.os.Build
-import androidx.core.app.NotificationCompat
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.deepsleep.data.LogRepository
 import com.example.deepsleep.data.SettingsRepository
 import com.example.deepsleep.data.StatsRepository
 import com.example.deepsleep.model.AppSettings
+import com.example.deepsleep.model.LogLevel
+import com.example.deepsleep.root.RootCommander
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class MainViewModel(
-    private val context: Context,
-    private val settingsRepository: SettingsRepository = SettingsRepository(context),
-    private val logRepository: LogRepository = LogRepository(context),
-    private val statsRepository: StatsRepository = StatsRepository(context)
-) : ViewModel() {
+data class MainUiState(
+    val hasRoot: Boolean = false,
+    val isRefreshing: Boolean = false
+)
+
+class MainViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val context = application.applicationContext
+
+    private val settingsRepository = SettingsRepository(context)
+    private val logRepository = LogRepository()
+    private val statsRepository = StatsRepository()
+
+    // UI 状态
+    private val _uiState = MutableStateFlow(MainUiState())
+    val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
     val settings: StateFlow<AppSettings> = settingsRepository.settings
         .stateIn(viewModelScope, SharingStarted.Lazily, AppSettings())
@@ -34,6 +46,15 @@ class MainViewModel(
 
     init {
         setupNotificationChannel()
+        viewModelScope.launch {
+            refreshRootStatus()
+        }
+        viewModelScope.launch {
+            while (true) {
+                delay(60_000)
+                refreshRootStatus()
+            }
+        }
     }
 
     private fun setupNotificationChannel() {
@@ -51,77 +72,80 @@ class MainViewModel(
         }
     }
 
-    // ========== 深度 Doze ==========
+    suspend fun refreshRootStatus() {
+        _uiState.update { it.copy(isRefreshing = true) }
+        val hasRoot = RootCommander.checkRoot()
+        _uiState.update { it.copy(hasRoot = hasRoot, isRefreshing = false) }
+    }
+
+    // ========== 原有方法（修正 appendLog 调用） ==========
     fun setDeepDozeEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setDeepDozeEnabled(enabled)
-            logRepository.appendLog("深度 Doze 已${if (enabled) "启用" else "禁用"}")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "深度 Doze 已${if (enabled) "启用" else "禁用"}")
         }
     }
 
     fun setDeepDozeDelaySeconds(seconds: Int) {
         viewModelScope.launch {
             settingsRepository.setDeepDozeDelaySeconds(seconds)
-            logRepository.appendLog("深度 Doze 延迟时间已设置为: $seconds 秒")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "深度 Doze 延迟时间已设置为: $seconds 秒")
         }
     }
 
     fun setDeepDozeForceMode(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setDeepDozeForceMode(enabled)
-            logRepository.appendLog("深度 Doze 强制模式已${if (enabled) "启用" else "禁用"}")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "深度 Doze 强制模式已${if (enabled) "启用" else "禁用"}")
         }
     }
 
-    // ========== 深度睡眠 Hook ==========
     fun setDeepSleepHookEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setDeepSleepHookEnabled(enabled)
-            logRepository.appendLog("深度睡眠 Hook 已${if (enabled) "启用" else "禁用"}")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "深度睡眠 Hook 已${if (enabled) "启用" else "禁用"}")
         }
     }
 
     fun setDeepSleepDelaySeconds(seconds: Int) {
         viewModelScope.launch {
             settingsRepository.setDeepSleepDelaySeconds(seconds)
-            logRepository.appendLog("深度睡眠延迟时间已设置为: $seconds 秒")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "深度睡眠延迟时间已设置为: $seconds 秒")
         }
     }
 
     fun setDeepSleepBlockExit(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setDeepSleepBlockExit(enabled)
-            logRepository.appendLog("深度睡眠阻止自动退出已${if (enabled) "启用" else "禁用"}")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "深度睡眠阻止自动退出已${if (enabled) "启用" else "禁用"}")
         }
     }
 
     fun setDeepSleepCheckInterval(interval: Int) {
         viewModelScope.launch {
             settingsRepository.setDeepSleepCheckInterval(interval)
-            logRepository.appendLog("深度睡眠状态检查间隔已设置为: $interval 秒")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "深度睡眠状态检查间隔已设置为: $interval 秒")
         }
     }
 
-    // ========== 系统省电模式联动 ==========
     fun setEnablePowerSaverOnSleep(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setEnablePowerSaverOnSleep(enabled)
-            logRepository.appendLog("进入深度睡眠时开启省电模式已${if (enabled) "启用" else "禁用"}")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "进入深度睡眠时开启省电模式已${if (enabled) "启用" else "禁用"}")
         }
     }
 
     fun setDisablePowerSaverOnWake(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setDisablePowerSaverOnWake(enabled)
-            logRepository.appendLog("退出深度睡眠时关闭省电模式已${if (enabled) "启用" else "禁用"}")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "退出深度睡眠时关闭省电模式已${if (enabled) "启用" else "禁用"}")
         }
     }
 
-    // ========== CPU 调度优化 ==========
     fun setCpuOptimizationEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setCpuOptimizationEnabled(enabled)
-            logRepository.appendLog("CPU 调度优化已${if (enabled) "启用" else "禁用"}")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "CPU 调度优化已${if (enabled) "启用" else "禁用"}")
         }
     }
 
@@ -129,7 +153,7 @@ class MainViewModel(
         viewModelScope.launch {
             settingsRepository.setCpuModeOnScreen(mode)
             val modeName = getCpuModeName(mode)
-            logRepository.appendLog("亮屏 CPU 模式已设置为: $modeName")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "亮屏 CPU 模式已设置为: $modeName")
         }
     }
 
@@ -137,25 +161,24 @@ class MainViewModel(
         viewModelScope.launch {
             settingsRepository.setCpuModeOnScreenOff(mode)
             val modeName = getCpuModeName(mode)
-            logRepository.appendLog("息屏 CPU 模式已设置为: $modeName")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "息屏 CPU 模式已设置为: $modeName")
         }
     }
 
     fun setAutoSwitchCpuMode(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setAutoSwitchCpuMode(enabled)
-            logRepository.appendLog("自动切换 CPU 模式已${if (enabled) "启用" else "禁用"}")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "自动切换 CPU 模式已${if (enabled) "启用" else "禁用"}")
         }
     }
 
     fun setAllowManualCpuMode(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setAllowManualCpuMode(enabled)
-            logRepository.appendLog("手动切换 CPU 模式已${if (enabled) "启用" else "禁用"}")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "手动切换 CPU 模式已${if (enabled) "启用" else "禁用"}")
         }
     }
 
-    // CPU 参数 - 日常模式
     fun setDailyUpRateLimit(value: Int) {
         viewModelScope.launch {
             settingsRepository.setDailyUpRateLimit(value)
@@ -180,7 +203,6 @@ class MainViewModel(
         }
     }
 
-    // CPU 参数 - 待机模式
     fun setStandbyUpRateLimit(value: Int) {
         viewModelScope.launch {
             settingsRepository.setStandbyUpRateLimit(value)
@@ -205,7 +227,6 @@ class MainViewModel(
         }
     }
 
-    // CPU 参数 - 默认模式
     fun setDefaultUpRateLimit(value: Int) {
         viewModelScope.launch {
             settingsRepository.setDefaultUpRateLimit(value)
@@ -230,7 +251,6 @@ class MainViewModel(
         }
     }
 
-    // CPU 参数 - 性能模式
     fun setPerfUpRateLimit(value: Int) {
         viewModelScope.launch {
             settingsRepository.setPerfUpRateLimit(value)
@@ -255,11 +275,10 @@ class MainViewModel(
         }
     }
 
-    // ========== 进程压制 ==========
     fun setSuppressEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setSuppressEnabled(enabled)
-            logRepository.appendLog("进程压制已${if (enabled) "启用" else "禁用"}")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "进程压制已${if (enabled) "启用" else "禁用"}")
         }
     }
 
@@ -271,58 +290,56 @@ class MainViewModel(
                 "aggressive" -> "激进"
                 else -> mode
             }
-            logRepository.appendLog("压制模式已设置为: $modeName")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "压制模式已设置为: $modeName")
         }
     }
 
     fun setDebounceInterval(interval: Int) {
         viewModelScope.launch {
             settingsRepository.setDebounceInterval(interval)
-            logRepository.appendLog("防抖间隔已设置为: $interval 秒")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "防抖间隔已设置为: $interval 秒")
         }
     }
 
     fun setSuppressInterval(interval: Int) {
         viewModelScope.launch {
             settingsRepository.setSuppressInterval(interval)
-            logRepository.appendLog("压制间隔已设置为: $interval 秒")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "压制间隔已设置为: $interval 秒")
         }
     }
 
     fun setSuppressOomValue(value: Int) {
         viewModelScope.launch {
             settingsRepository.setSuppressOomValue(value)
-            logRepository.appendLog("OOM 值已设置为: $value")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "OOM 值已设置为: $value")
         }
     }
 
-    // ========== 后台优化 ==========
     fun setBackgroundOptimizationEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setBackgroundOptimizationEnabled(enabled)
-            logRepository.appendLog("后台优化已${if (enabled) "启用" else "禁用"}")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "后台优化已${if (enabled) "启用" else "禁用"}")
         }
     }
 
-    // ========== 其他 ==========
     fun setBootStartEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setBootStartEnabled(enabled)
-            logRepository.appendLog("开机自启动已${if (enabled) "启用" else "禁用"}")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "开机自启动已${if (enabled) "启用" else "禁用"}")
         }
     }
 
     fun setNotificationsEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setNotificationsEnabled(enabled)
-            logRepository.appendLog("通知已${if (enabled) "启用" else "禁用"}")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "通知已${if (enabled) "启用" else "禁用"}")
         }
     }
 
     fun clearLogs() {
         viewModelScope.launch {
             logRepository.clearLogs()
-            logRepository.appendLog("日志已清除")
+            logRepository.appendLog(LogLevel.INFO, "MainViewModel", "日志已清除")
         }
     }
 
