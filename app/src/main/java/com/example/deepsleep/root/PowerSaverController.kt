@@ -32,7 +32,7 @@ object PowerSaverController {
     suspend fun isEnabled(): Boolean {
         return try {
             val result = RootCommander.exec("settings get global low_power")
-            result.out.trim() == "1"
+            result.out.firstOrNull()?.trim() == "1"
         } catch (e: Exception) {
             false
         }
